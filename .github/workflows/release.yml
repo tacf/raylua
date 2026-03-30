@@ -1,0 +1,259 @@
+name: Build and Release
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"
+  push:
+    branches: [master, main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check.outputs.has_changes }}
+      raylib_ver: ${{ steps.check.outputs.raylib_ver }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 2
+
+      - name: Check for changes
+        id: check
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          RAYLIB_VER=$(grep '#define RAYLIB_VERSION ' raylib/src/raylib.h | sed 's/.*"\(.*\)"/\1/')
+          echo "raylib_ver=$RAYLIB_VER" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$RELEASE_TAG" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Building release: $RELEASE_TAG"
+          elif git diff --name-only HEAD~1 HEAD | grep -q .; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Code changes detected"
+          elif git submodule status | grep -q "^[+-]"; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Submodule changes detected"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected, skipping build"
+          fi
+
+  validate-generated:
+    needs: check-changes
+    if: needs.check-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libasound2-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev
+
+      - name: Build rlparser
+        run: make -C raylib/tools/rlparser rlparser
+
+      - name: Regenerate bindings and autocomplete
+        run: make update
+
+      - name: Verify generated files are committed
+        run: git diff --exit-code -- tools autocomplete/api
+
+  build-linux:
+    needs: [check-changes, validate-generated]
+    if: needs.check-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libasound2-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev
+
+      - name: Build package
+        run: make package
+
+      - name: Upload executables only
+        uses: actions/upload-artifact@v7
+        with:
+          name: raylib-lua-${{ runner.os }}
+          path: dist/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: raylua-linux
+          path: raylua-linux.tar.gz
+
+  build-macos:
+    needs: validate-generated
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-26
+            artifact: raylua-macos-arm64
+          - runner: macos-26-intel
+            artifact: raylua-macos-x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Build package
+        run: make package
+
+      - name: Upload executables only
+        uses: actions/upload-artifact@v7
+        with:
+          name: raylib-lua-${{ runner.os }}
+          path: dist/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.tar.gz
+
+  build-windows:
+    needs: [check-changes, validate-generated]
+    if: needs.check-changes.outputs.has_changes == 'true'
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            make
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+
+      - name: Build package
+        run: make package
+
+      - name: Upload executables only
+        uses: actions/upload-artifact@v7
+        with:
+          name: raylib-lua-${{ runner.os }}
+          path: dist/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: raylua-windows
+          path: raylua-windows.zip
+
+  release:
+    needs: [check-changes, build-linux, build-macos, build-windows]
+    if: needs.check-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: builds
+
+      - name: Determine release version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          RAYLIB_VER=$(grep '#define RAYLIB_VERSION ' raylib/src/raylib.h | sed 's/.*"\(.*\)"/\1/')
+
+          if [ -n "$RELEASE_TAG" ]; then
+            TAG_NAME="$RELEASE_TAG"
+            RELEASE_NAME="rlua-${RELEASE_TAG#v}"
+            PRERELEASE=false
+            MAKE_LATEST=true
+          else
+            DATE=$(date +%Y%m%d)
+            WEEK=$(date +%V)
+            TAG_NAME="rlua-${DATE}W${WEEK}-edge"
+            RELEASE_NAME="$TAG_NAME"
+            PRERELEASE=true
+            MAKE_LATEST=false
+          fi
+
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "make_latest=$MAKE_LATEST" >> "$GITHUB_OUTPUT"
+          echo "raylib_version=$RAYLIB_VER" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.version.outputs.release_name }}
+          draft: false
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          make_latest: ${{ steps.version.outputs.make_latest }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            builds/raylua-linux/raylua-linux.tar.gz
+            builds/raylua-macos/raylua-macos.tar.gz
+            builds/raylua-windows/raylua-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

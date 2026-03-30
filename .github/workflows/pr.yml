@@ -1,0 +1,240 @@
+name: PR Build
+
+on:
+  pull_request:
+    branches: [master, main]
+  push:
+    branches: [master, main]
+
+jobs:
+  validate-generated:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libasound2-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev
+
+      - name: Build rlparser
+        run: make -C raylib/tools/rlparser rlparser
+
+      - name: Regenerate bindings and autocomplete
+        run: make update
+
+      - name: Verify generated files are committed
+        run: git diff --exit-code -- tools autocomplete/api
+
+  build-linux:
+    needs: validate-generated
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libasound2-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev
+
+      - name: Build
+        run: make
+
+      - name: Collect executables
+        run: |
+          mkdir -p dist
+          cp raylua-out/raylua dist/
+          cp raylua-out/rayluac dist/
+          ls -la dist
+
+      - name: Upload executables
+        uses: actions/upload-artifact@v7
+        with:
+          name: raylib-lua-linux-x64
+          path: dist/*
+          if-no-files-found: error
+
+  build-macos:
+    needs: validate-generated
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            artifact_name: raylib-lua-macos-arm64
+          - runner: macos-26-intel
+            artifact_name: raylib-lua-macos-x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Build
+        run: make
+
+      - name: Collect executables
+        run: |
+          mkdir -p dist
+          cp raylua-out/raylua dist/
+          cp raylua-out/rayluac dist/
+          ls -la dist
+
+      - name: Upload executables
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/*
+          if-no-files-found: error
+
+  build-windows:
+    needs: validate-generated
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            make
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+
+      - name: Build
+        run: make
+
+      - name: Collect executables
+        run: |
+          mkdir -p dist
+          if [ -f raylua-out/raylua.exe ]; then
+            cp raylua-out/raylua.exe dist/
+          else
+            cp raylua-out/raylua dist/
+          fi
+
+          if [ -f raylua-out/rayluac.exe ]; then
+            cp raylua-out/rayluac.exe dist/
+          else
+            cp raylua-out/rayluac dist/
+          fi
+
+          ls -la dist
+
+      - name: Upload executables
+        uses: actions/upload-artifact@v7
+        with:
+          name: raylib-lua-windows-x64
+          path: dist/*
+          if-no-files-found: error
+
+  comment-pr:
+    if: github.event_name == 'pull_request'
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Determine version
+        id: version
+        run: |
+          DATE=$(date +%Y%m%d)
+          WEEK=$(date +%V)
+          RUN_NUMBER=${{ github.run_number }}
+          IDENTIFIER="pr${{ github.event.pull_request.number }}.${RUN_NUMBER}"
+          VERSION="rlua-${DATE}W${WEEK}-experimental.${IDENTIFIER}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Find existing bot comment
+        id: find_comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(
+              (c) => c.user.type === "Bot" && c.body.includes("### Raylua PR Build")
+            );
+
+            core.setOutput("comment_id", botComment ? String(botComment.id) : "");
+
+      - name: Delete old comment
+        if: steps.find_comment.outputs.comment_id != ''
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: Number("${{ steps.find_comment.outputs.comment_id }}"),
+            });
+
+      - name: Post comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const version = "${{ steps.version.outputs.version }}";
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body =
+              "### Raylua PR Build\n\n" +
+              `**Version:** ${version}\n\n` +
+              "#### Artifacts\n\n" +
+              "| Platform | Download |\n" +
+              "|----------|----------|\n" +
+              `| Linux x64 | [raylib-lua-linux-x64](${runUrl}) |\n` +
+              `| macOS arm64 | [raylib-lua-macos-arm64](${runUrl}) |\n` +
+              `| macOS x64 | [raylib-lua-macos-x64](${runUrl}) |\n` +
+              `| Windows x64 | [raylib-lua-windows-x64](${runUrl}) |\n`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

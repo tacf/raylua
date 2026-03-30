@@ -1,0 +1,11 @@
+*.o
+*.res
+*.a
+src/autogen/bind.c
+src/autogen/boot.c
+src/autogen/builder.c
+raylua-out/
+dist/
+libraylua.a
+.cache
+compile_commands.json
