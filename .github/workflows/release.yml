@@ -5,9 +5,14 @@ on:
     - cron: "0 0 * * 0"
   push:
     branches: [master, main]
-  release:
-    types: [published]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   check-changes:
@@ -25,25 +30,78 @@ jobs:
 
       - name: Check for changes
         id: check
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
+
           RAYLIB_VER=$(grep '#define RAYLIB_VERSION ' raylib/src/raylib.h | sed 's/.*"\(.*\)"/\1/')
           echo "raylib_ver=$RAYLIB_VER" >> "$GITHUB_OUTPUT"
 
-          if [ -n "$RELEASE_TAG" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            echo "Building release: $RELEASE_TAG"
-          elif git diff --name-only HEAD~1 HEAD | grep -q .; then
+            echo "Manual run requested"
+            exit 0
+          fi
+
+          if git rev-parse HEAD~1 >/dev/null 2>&1 && git diff --name-only HEAD~1 HEAD | grep -q .; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
             echo "Code changes detected"
-          elif git submodule status | grep -q "^[+-]"; then
+          elif git submodule status --recursive | grep -q "^[+-]"; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
             echo "Submodule changes detected"
           else
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "No changes detected, skipping build"
           fi
+
+  version:
+    needs: check-changes
+    if: needs.check-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version_prefix: ${{ steps.version.outputs.version_prefix }}
+      tag_name: ${{ steps.version.outputs.tag_name }}
+      release_name: ${{ steps.version.outputs.release_name }}
+      raylib_version: ${{ steps.version.outputs.raylib_version }}
+
+    steps:
+      - name: Determine CalVer and release tag
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TZ: Europe/Lisbon
+        run: |
+          set -euo pipefail
+
+          DATE=$(date +%Y%m%d)
+          EXISTING_TAGS=$(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name' 2>/dev/null || true
+          )
+
+          MAX_SEQ=$(
+            printf '%s\n' "$EXISTING_TAGS" \
+              | sed -n "s/^rlua-${DATE}-dev\.\([0-9][0-9]*\)$/\1/p" \
+              | sort -n \
+              | tail -n1
+          )
+
+          if [ -z "${MAX_SEQ:-}" ]; then
+            SEQ=1
+          else
+            SEQ=$((MAX_SEQ + 1))
+          fi
+
+          VERSION_PREFIX="${DATE}-dev.${SEQ}"
+          TAG_NAME="rlua-${VERSION_PREFIX}"
+
+          echo "version_prefix=$VERSION_PREFIX" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "release_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "raylib_version=${{ needs.check-changes.outputs.raylib_ver }}" >> "$GITHUB_OUTPUT"
+
+          echo "Using version prefix: $VERSION_PREFIX"
+          echo "Using tag name: $TAG_NAME"
 
   validate-generated:
     needs: check-changes
@@ -80,7 +138,7 @@ jobs:
         run: git diff --exit-code -- tools autocomplete/api
 
   build-linux:
-    needs: [check-changes, validate-generated]
+    needs: [check-changes, version, validate-generated]
     if: needs.check-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
 
@@ -107,20 +165,45 @@ jobs:
       - name: Build package
         run: make package
 
+      - name: Stage release files
+        env:
+          VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p release
+
+          PACKAGE_SOURCE=$(ls -1t raylua-linux*.tar.gz 2>/dev/null | head -n1 || true)
+          if [ -z "${PACKAGE_SOURCE:-}" ]; then
+            PACKAGE_SOURCE=$(ls -1t raylua-*.tar.gz 2>/dev/null | head -n1 || true)
+          fi
+
+          if [ -z "${PACKAGE_SOURCE:-}" ]; then
+            echo "No Linux package archive found"
+            exit 1
+          fi
+
+          cp "$PACKAGE_SOURCE" "release/${VERSION_PREFIX}-raylua-linux.tar.gz"
+          ls -la release
+          ls -la dist
+
       - name: Upload executables only
         uses: actions/upload-artifact@v7
         with:
-          name: raylib-lua-${{ runner.os }}
+          name: ${{ needs.version.outputs.version_prefix }}-exec-linux-x64
           path: dist/*
+          if-no-files-found: error
 
-      - name: Upload artifacts
+      - name: Upload package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: raylua-linux
-          path: raylua-linux.tar.gz
+          name: ${{ needs.version.outputs.version_prefix }}-pkg-linux
+          path: release/${{ needs.version.outputs.version_prefix }}-raylua-linux.tar.gz
+          if-no-files-found: error
 
   build-macos:
-    needs: validate-generated
+    needs: [check-changes, version, validate-generated]
+    if: needs.check-changes.outputs.has_changes == 'true'
     runs-on: ${{ matrix.runner }}
 
     strategy:
@@ -128,9 +211,13 @@ jobs:
       matrix:
         include:
           - runner: macos-26
-            artifact: raylua-macos-arm64
+            platform_id: macos-arm64
+            exec_artifact_suffix: exec-macos-arm64
+            pkg_artifact_suffix: pkg-macos-arm64
           - runner: macos-26-intel
-            artifact: raylua-macos-x64
+            platform_id: macos-x64
+            exec_artifact_suffix: exec-macos-x64
+            pkg_artifact_suffix: pkg-macos-x64
 
     steps:
       - name: Checkout
@@ -141,20 +228,45 @@ jobs:
       - name: Build package
         run: make package
 
+      - name: Stage release files
+        env:
+          VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
+          PLATFORM_ID: ${{ matrix.platform_id }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p release
+
+          PACKAGE_SOURCE=$(ls -1t raylua-macos*.tar.gz 2>/dev/null | head -n1 || true)
+          if [ -z "${PACKAGE_SOURCE:-}" ]; then
+            PACKAGE_SOURCE=$(ls -1t raylua-*.tar.gz 2>/dev/null | head -n1 || true)
+          fi
+
+          if [ -z "${PACKAGE_SOURCE:-}" ]; then
+            echo "No macOS package archive found"
+            exit 1
+          fi
+
+          cp "$PACKAGE_SOURCE" "release/${VERSION_PREFIX}-raylua-${PLATFORM_ID}.tar.gz"
+          ls -la release
+          ls -la dist
+
       - name: Upload executables only
         uses: actions/upload-artifact@v7
         with:
-          name: raylib-lua-${{ runner.os }}
+          name: ${{ needs.version.outputs.version_prefix }}-${{ matrix.exec_artifact_suffix }}
           path: dist/*
+          if-no-files-found: error
 
-      - name: Upload artifacts
+      - name: Upload package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.tar.gz
+          name: ${{ needs.version.outputs.version_prefix }}-${{ matrix.pkg_artifact_suffix }}
+          path: release/${{ needs.version.outputs.version_prefix }}-raylua-${{ matrix.platform_id }}.tar.gz
+          if-no-files-found: error
 
   build-windows:
-    needs: [check-changes, validate-generated]
+    needs: [check-changes, version, validate-generated]
     if: needs.check-changes.outputs.has_changes == 'true'
     runs-on: windows-latest
 
@@ -182,78 +294,73 @@ jobs:
       - name: Build package
         run: make package
 
+      - name: Stage release files
+        env:
+          VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p release
+
+          PACKAGE_SOURCE=$(ls -1t raylua-windows*.zip 2>/dev/null | head -n1 || true)
+          if [ -z "${PACKAGE_SOURCE:-}" ]; then
+            PACKAGE_SOURCE=$(ls -1t raylua-*.zip 2>/dev/null | head -n1 || true)
+          fi
+
+          if [ -z "${PACKAGE_SOURCE:-}" ]; then
+            echo "No Windows package archive found"
+            exit 1
+          fi
+
+          cp "$PACKAGE_SOURCE" "release/${VERSION_PREFIX}-raylua-windows.zip"
+          ls -la release
+          ls -la dist
+
       - name: Upload executables only
         uses: actions/upload-artifact@v7
         with:
-          name: raylib-lua-${{ runner.os }}
+          name: ${{ needs.version.outputs.version_prefix }}-exec-windows-x64
           path: dist/*
+          if-no-files-found: error
 
-      - name: Upload artifacts
+      - name: Upload package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: raylua-windows
-          path: raylua-windows.zip
+          name: ${{ needs.version.outputs.version_prefix }}-pkg-windows
+          path: release/${{ needs.version.outputs.version_prefix }}-raylua-windows.zip
+          if-no-files-found: error
 
   release:
-    needs: [check-changes, build-linux, build-macos, build-windows]
+    needs: [check-changes, version, build-linux, build-macos, build-windows]
     if: needs.check-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          submodules: true
-          fetch-depth: 0
-
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: builds
 
-      - name: Determine release version
-        id: version
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: |
-          RAYLIB_VER=$(grep '#define RAYLIB_VERSION ' raylib/src/raylib.h | sed 's/.*"\(.*\)"/\1/')
+      - name: Show downloaded files
+        run: find builds -maxdepth 2 -type f | sort
 
-          if [ -n "$RELEASE_TAG" ]; then
-            TAG_NAME="$RELEASE_TAG"
-            RELEASE_NAME="rlua-${RELEASE_TAG#v}"
-            PRERELEASE=false
-            MAKE_LATEST=true
-          else
-            DATE=$(date +%Y%m%d)
-            WEEK=$(date +%V)
-            TAG_NAME="rlua-${DATE}W${WEEK}-edge"
-            RELEASE_NAME="$TAG_NAME"
-            PRERELEASE=true
-            MAKE_LATEST=false
-          fi
-
-          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
-          echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
-          echo "make_latest=$MAKE_LATEST" >> "$GITHUB_OUTPUT"
-          echo "raylib_version=$RAYLIB_VER" >> "$GITHUB_OUTPUT"
-
-      - name: Create or update release
+      - name: Create or update GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag_name }}
+          tag_name: ${{ needs.version.outputs.tag_name }}
           target_commitish: ${{ github.sha }}
-          name: ${{ steps.version.outputs.release_name }}
+          name: ${{ needs.version.outputs.release_name }}
           draft: false
-          prerelease: ${{ steps.version.outputs.prerelease }}
-          make_latest: ${{ steps.version.outputs.make_latest }}
+          prerelease: true
+          make_latest: false
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            builds/raylua-linux/raylua-linux.tar.gz
-            builds/raylua-macos/raylua-macos.tar.gz
-            builds/raylua-windows/raylua-windows.zip
+            builds/${{ needs.version.outputs.version_prefix }}-pkg-linux/${{ needs.version.outputs.version_prefix }}-raylua-linux.tar.gz
+            builds/${{ needs.version.outputs.version_prefix }}-pkg-macos-arm64/${{ needs.version.outputs.version_prefix }}-raylua-macos-arm64.tar.gz
+            builds/${{ needs.version.outputs.version_prefix }}-pkg-macos-x64/${{ needs.version.outputs.version_prefix }}-raylua-macos-x64.tar.gz
+            builds/${{ needs.version.outputs.version_prefix }}-pkg-windows/${{ needs.version.outputs.version_prefix }}-raylua-windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
