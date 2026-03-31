@@ -1,10 +1,8 @@
 name: Build and Release
 
 on:
-  schedule:
-    - cron: "0 0 * * 0"
   push:
-    branches: [master, main]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -63,10 +61,9 @@ jobs:
       version_prefix: ${{ steps.version.outputs.version_prefix }}
       tag_name: ${{ steps.version.outputs.tag_name }}
       release_name: ${{ steps.version.outputs.release_name }}
-      raylib_version: ${{ steps.version.outputs.raylib_version }}
 
     steps:
-      - name: Determine CalVer and release tag
+      - name: Determine version
         id: version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -81,7 +78,7 @@ jobs:
 
           MAX_SEQ=$(
             printf '%s\n' "$EXISTING_TAGS" \
-              | sed -n "s/^rlua-${DATE}-dev\.\([0-9][0-9]*\)$/\1/p" \
+              | sed -n "s/^raylua-${DATE}-dev\.\([0-9][0-9]*\)$/\1/p" \
               | sort -n \
               | tail -n1
           )
@@ -93,15 +90,14 @@ jobs:
           fi
 
           VERSION_PREFIX="${DATE}-dev.${SEQ}"
-          TAG_NAME="rlua-${VERSION_PREFIX}"
+          TAG_NAME="raylua-${VERSION_PREFIX}"
 
           echo "version_prefix=$VERSION_PREFIX" >> "$GITHUB_OUTPUT"
           echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
           echo "release_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
-          echo "raylib_version=${{ needs.check-changes.outputs.raylib_ver }}" >> "$GITHUB_OUTPUT"
 
-          echo "Using version prefix: $VERSION_PREFIX"
-          echo "Using tag name: $TAG_NAME"
+          echo "Version prefix: $VERSION_PREFIX"
+          echo "Tag: $TAG_NAME"
 
   validate-generated:
     needs: check-changes
@@ -165,41 +161,35 @@ jobs:
       - name: Build package
         run: make package
 
-      - name: Stage release files
-        env:
-          VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
-          TAG_NAME: ${{ needs.version.outputs.tag_name }}
+      - name: Stage binaries and bundle
         run: |
           set -euo pipefail
 
-          mkdir -p release
+          mkdir -p release-bin package
+          test -f dist/raylua
+          test -f dist/rayluac
 
-          PACKAGE_SOURCE=$(ls -1t raylua-linux*.tar.gz 2>/dev/null | head -n1 || true)
-          if [ -z "${PACKAGE_SOURCE:-}" ]; then
-            PACKAGE_SOURCE=$(ls -1t raylua-*.tar.gz 2>/dev/null | head -n1 || true)
-          fi
+          cp dist/raylua release-bin/
+          cp dist/rayluac release-bin/
 
-          if [ -z "${PACKAGE_SOURCE:-}" ]; then
-            echo "No Linux package archive found"
-            exit 1
-          fi
+          tar -C release-bin -czf package/raylua-linux-x64.tar.gz raylua rayluac
 
-          cp "$PACKAGE_SOURCE" "release/${TAG_NAME}-raylua-linux.tar.gz"
-          ls -la release
           ls -la dist
+          ls -la release-bin
+          ls -la package
 
-      - name: Upload executables only
+      - name: Upload executables
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ needs.version.outputs.version_prefix }}-exec-linux-x64
-          path: dist/*
+          name: ${{ needs.version.outputs.version_prefix }}-raylib-lua-linux-x64
+          path: release-bin/*
           if-no-files-found: error
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ needs.version.outputs.version_prefix }}-pkg-linux
-          path: release/${{ needs.version.outputs.tag_name }}-raylua-linux.tar.gz
+          name: ${{ needs.version.outputs.version_prefix }}-raylua-linux
+          path: package/raylua-linux-x64.tar.gz
           if-no-files-found: error
 
   build-macos:
@@ -212,13 +202,13 @@ jobs:
       matrix:
         include:
           - runner: macos-26
-            platform_id: macos-arm64
-            exec_artifact_suffix: exec-macos-arm64
-            pkg_artifact_suffix: pkg-macos-arm64
+            exec_artifact_name: raylib-lua-macos-arm64
+            package_artifact_name: raylua-macos-arm64
+            platform_label: macos-arm64
           - runner: macos-26-intel
-            platform_id: macos-x64
-            exec_artifact_suffix: exec-macos-x64
-            pkg_artifact_suffix: pkg-macos-x64
+            exec_artifact_name: raylib-lua-macos-x64
+            package_artifact_name: raylua-macos-x64
+            platform_label: macos-x64
 
     steps:
       - name: Checkout
@@ -229,42 +219,35 @@ jobs:
       - name: Build package
         run: make package
 
-      - name: Stage release files
-        env:
-          VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
-          TAG_NAME: ${{ needs.version.outputs.tag_name }}
-          PLATFORM_ID: ${{ matrix.platform_id }}
+      - name: Stage binaries and bundle
         run: |
           set -euo pipefail
 
-          mkdir -p release
+          mkdir -p release-bin package
+          test -f dist/raylua
+          test -f dist/rayluac
 
-          PACKAGE_SOURCE=$(ls -1t raylua-macos*.tar.gz 2>/dev/null | head -n1 || true)
-          if [ -z "${PACKAGE_SOURCE:-}" ]; then
-            PACKAGE_SOURCE=$(ls -1t raylua-*.tar.gz 2>/dev/null | head -n1 || true)
-          fi
+          cp dist/raylua release-bin/
+          cp dist/rayluac release-bin/
 
-          if [ -z "${PACKAGE_SOURCE:-}" ]; then
-            echo "No macOS package archive found"
-            exit 1
-          fi
+          tar -C release-bin -czf "package/raylua-${{ matrix.platform_label }}.tar.gz" raylua rayluac
 
-          cp "$PACKAGE_SOURCE" "release/${TAG_NAME}-raylua-${PLATFORM_ID}.tar.gz"
-          ls -la release
           ls -la dist
+          ls -la release-bin
+          ls -la package
 
-      - name: Upload executables only
+      - name: Upload executables
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ needs.version.outputs.version_prefix }}-${{ matrix.exec_artifact_suffix }}
-          path: dist/*
+          name: ${{ needs.version.outputs.version_prefix }}-${{ matrix.exec_artifact_name }}
+          path: release-bin/*
           if-no-files-found: error
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ needs.version.outputs.version_prefix }}-${{ matrix.pkg_artifact_suffix }}
-          path: release/${{ needs.version.outputs.tag_name }}-raylua-${{ matrix.platform_id }}.tar.gz
+          name: ${{ needs.version.outputs.version_prefix }}-${{ matrix.package_artifact_name }}
+          path: package/raylua-${{ matrix.platform_label }}.tar.gz
           if-no-files-found: error
 
   build-windows:
@@ -290,47 +273,56 @@ jobs:
           install: >-
             git
             make
+            zip
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-binutils
 
       - name: Build package
         run: make package
 
-      - name: Stage release files
-        env:
-          VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
-          TAG_NAME: ${{ needs.version.outputs.tag_name }}
+      - name: Stage binaries and bundle
         run: |
           set -euo pipefail
 
-          mkdir -p release
+          mkdir -p release-bin package
 
-          PACKAGE_SOURCE=$(ls -1t raylua-windows*.zip 2>/dev/null | head -n1 || true)
-          if [ -z "${PACKAGE_SOURCE:-}" ]; then
-            PACKAGE_SOURCE=$(ls -1t raylua-*.zip 2>/dev/null | head -n1 || true)
+          if [ -f dist/raylua.exe ]; then
+            cp dist/raylua.exe release-bin/
+            RAYLUA_BIN="raylua.exe"
+          else
+            cp dist/raylua release-bin/
+            RAYLUA_BIN="raylua"
           fi
 
-          if [ -z "${PACKAGE_SOURCE:-}" ]; then
-            echo "No Windows package archive found"
-            exit 1
+          if [ -f dist/rayluac.exe ]; then
+            cp dist/rayluac.exe release-bin/
+            RAYLUAC_BIN="rayluac.exe"
+          else
+            cp dist/rayluac release-bin/
+            RAYLUAC_BIN="rayluac"
           fi
 
-          cp "$PACKAGE_SOURCE" "release/${TAG_NAME}-raylua-windows.zip"
-          ls -la release
+          (
+            cd release-bin
+            zip -9 "../package/raylua-windows-x64.zip" "$RAYLUA_BIN" "$RAYLUAC_BIN"
+          )
+
           ls -la dist
+          ls -la release-bin
+          ls -la package
 
-      - name: Upload executables only
+      - name: Upload executables
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ needs.version.outputs.version_prefix }}-exec-windows-x64
-          path: dist/*
+          name: ${{ needs.version.outputs.version_prefix }}-raylib-lua-windows-x64
+          path: release-bin/*
           if-no-files-found: error
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ needs.version.outputs.version_prefix }}-pkg-windows
-          path: release/${{ needs.version.outputs.tag_name }}-raylua-windows.zip
+          name: ${{ needs.version.outputs.version_prefix }}-raylua-windows
+          path: package/raylua-windows-x64.zip
           if-no-files-found: error
 
   release:
@@ -347,9 +339,32 @@ jobs:
           path: builds
 
       - name: Show downloaded files
-        run: find builds -maxdepth 2 -type f | sort
+        run: find builds -maxdepth 3 -type f | sort
 
-      - name: Create or update GitHub release
+      - name: Prepare release assets
+        env:
+          VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
+          TAG_NAME: ${{ needs.version.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p release-assets
+
+          cp "builds/${VERSION_PREFIX}-raylua-linux/raylua-linux-x64.tar.gz" \
+             "release-assets/${TAG_NAME}-raylua-linux-x64.tar.gz"
+
+          cp "builds/${VERSION_PREFIX}-raylua-macos-arm64/raylua-macos-arm64.tar.gz" \
+             "release-assets/${TAG_NAME}-raylua-macos-arm64.tar.gz"
+
+          cp "builds/${VERSION_PREFIX}-raylua-macos-x64/raylua-macos-x64.tar.gz" \
+             "release-assets/${TAG_NAME}-raylua-macos-x64.tar.gz"
+
+          cp "builds/${VERSION_PREFIX}-raylua-windows/raylua-windows-x64.zip" \
+             "release-assets/${TAG_NAME}-raylua-windows-x64.zip"
+
+          ls -la release-assets
+
+      - name: Create or update release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag_name }}
@@ -361,9 +376,9 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            builds/${{ needs.version.outputs.version_prefix }}-pkg-linux/${{ needs.version.outputs.tag_name }}-raylua-linux.tar.gz
-            builds/${{ needs.version.outputs.version_prefix }}-pkg-macos-arm64/${{ needs.version.outputs.tag_name }}-raylua-macos-arm64.tar.gz
-            builds/${{ needs.version.outputs.version_prefix }}-pkg-macos-x64/${{ needs.version.outputs.tag_name }}-raylua-macos-x64.tar.gz
-            builds/${{ needs.version.outputs.version_prefix }}-pkg-windows/${{ needs.version.outputs.tag_name }}-raylua-windows.zip
+            release-assets/${{ needs.version.outputs.tag_name }}-raylua-linux-x64.tar.gz
+            release-assets/${{ needs.version.outputs.tag_name }}-raylua-macos-arm64.tar.gz
+            release-assets/${{ needs.version.outputs.tag_name }}-raylua-macos-x64.tar.gz
+            release-assets/${{ needs.version.outputs.tag_name }}-raylua-windows-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
