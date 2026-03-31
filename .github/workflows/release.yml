@@ -168,6 +168,7 @@ jobs:
       - name: Stage release files
         env:
           VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
+          TAG_NAME: ${{ needs.version.outputs.tag_name }}
         run: |
           set -euo pipefail
 
@@ -183,7 +184,7 @@ jobs:
             exit 1
           fi
 
-          cp "$PACKAGE_SOURCE" "release/${VERSION_PREFIX}-raylua-linux.tar.gz"
+          cp "$PACKAGE_SOURCE" "release/${TAG_NAME}-raylua-linux.tar.gz"
           ls -la release
           ls -la dist
 
@@ -198,7 +199,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ needs.version.outputs.version_prefix }}-pkg-linux
-          path: release/${{ needs.version.outputs.version_prefix }}-raylua-linux.tar.gz
+          path: release/${{ needs.version.outputs.tag_name }}-raylua-linux.tar.gz
           if-no-files-found: error
 
   build-macos:
@@ -231,6 +232,7 @@ jobs:
       - name: Stage release files
         env:
           VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
+          TAG_NAME: ${{ needs.version.outputs.tag_name }}
           PLATFORM_ID: ${{ matrix.platform_id }}
         run: |
           set -euo pipefail
@@ -247,7 +249,7 @@ jobs:
             exit 1
           fi
 
-          cp "$PACKAGE_SOURCE" "release/${VERSION_PREFIX}-raylua-${PLATFORM_ID}.tar.gz"
+          cp "$PACKAGE_SOURCE" "release/${TAG_NAME}-raylua-${PLATFORM_ID}.tar.gz"
           ls -la release
           ls -la dist
 
@@ -262,7 +264,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ needs.version.outputs.version_prefix }}-${{ matrix.pkg_artifact_suffix }}
-          path: release/${{ needs.version.outputs.version_prefix }}-raylua-${{ matrix.platform_id }}.tar.gz
+          path: release/${{ needs.version.outputs.tag_name }}-raylua-${{ matrix.platform_id }}.tar.gz
           if-no-files-found: error
 
   build-windows:
@@ -297,6 +299,7 @@ jobs:
       - name: Stage release files
         env:
           VERSION_PREFIX: ${{ needs.version.outputs.version_prefix }}
+          TAG_NAME: ${{ needs.version.outputs.tag_name }}
         run: |
           set -euo pipefail
 
@@ -312,7 +315,7 @@ jobs:
             exit 1
           fi
 
-          cp "$PACKAGE_SOURCE" "release/${VERSION_PREFIX}-raylua-windows.zip"
+          cp "$PACKAGE_SOURCE" "release/${TAG_NAME}-raylua-windows.zip"
           ls -la release
           ls -la dist
 
@@ -327,7 +330,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ needs.version.outputs.version_prefix }}-pkg-windows
-          path: release/${{ needs.version.outputs.version_prefix }}-raylua-windows.zip
+          path: release/${{ needs.version.outputs.tag_name }}-raylua-windows.zip
           if-no-files-found: error
 
   release:
@@ -358,9 +361,9 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            builds/${{ needs.version.outputs.version_prefix }}-pkg-linux/${{ needs.version.outputs.version_prefix }}-raylua-linux.tar.gz
-            builds/${{ needs.version.outputs.version_prefix }}-pkg-macos-arm64/${{ needs.version.outputs.version_prefix }}-raylua-macos-arm64.tar.gz
-            builds/${{ needs.version.outputs.version_prefix }}-pkg-macos-x64/${{ needs.version.outputs.version_prefix }}-raylua-macos-x64.tar.gz
-            builds/${{ needs.version.outputs.version_prefix }}-pkg-windows/${{ needs.version.outputs.version_prefix }}-raylua-windows.zip
+            builds/${{ needs.version.outputs.version_prefix }}-pkg-linux/${{ needs.version.outputs.tag_name }}-raylua-linux.tar.gz
+            builds/${{ needs.version.outputs.version_prefix }}-pkg-macos-arm64/${{ needs.version.outputs.tag_name }}-raylua-macos-arm64.tar.gz
+            builds/${{ needs.version.outputs.version_prefix }}-pkg-macos-x64/${{ needs.version.outputs.tag_name }}-raylua-macos-x64.tar.gz
+            builds/${{ needs.version.outputs.version_prefix }}-pkg-windows/${{ needs.version.outputs.tag_name }}-raylua-windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
