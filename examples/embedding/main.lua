@@ -1,3 +1,11 @@
+--[[
+
+Example ported from oficial examples in raylib
+
+source: https://github.com/raysan5/raylib/blob/master/examples/embedding/embedding_main.c
+
+]]
+
 local width, height = 800, 450
 
 rl.SetConfigFlags(rl.FLAG_VSYNC_HINT)
