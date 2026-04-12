@@ -883,12 +883,6 @@ return {
       description = "Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS"
     },
     {
-      name = "RL_DEFAULT_SHADER_UNIFORM_NAME_BONEMATRICES",
-      type = "STRING",
-      value = "boneMatrices",
-      description = "Bound by default to shader location: RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEMATRICES"
-    },
-    {
       name = "RL_DEFAULT_SHADER_ATTRIB_NAME_INSTANCETRANSFORM",
       type = "STRING",
       value = "instanceTransform",
@@ -947,6 +941,12 @@ return {
       type = "STRING",
       value = "texture2",
       description = "texture2 (texture slot active 2)"
+    },
+    {
+      name = "RL_DEFAULT_SHADER_UNIFORM_NAME_BONEMATRICES",
+      type = "STRING",
+      value = "boneMatrices",
+      description = "bone matrices (required for GPU skinning)"
     },
     {
       name = "rlMatrixToFloat(mat)",
