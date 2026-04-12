@@ -64,7 +64,7 @@ void DrawCapsule(Vector3 startPos, Vector3 endPos, float radius, int slices, int
 void DrawCapsuleWires(Vector3 startPos, Vector3 endPos, float radius, int slices, int rings, Color color)
 void DrawCircle(int centerX, int centerY, float radius, Color color)
 void DrawCircle3D(Vector3 center, float radius, Vector3 rotationAxis, float rotationAngle, Color color)
-void DrawCircleGradient(int centerX, int centerY, float radius, Color inner, Color outer)
+void DrawCircleGradient(Vector2 center, float radius, Color inner, Color outer)
 void DrawCircleLines(int centerX, int centerY, float radius, Color color)
 void DrawCircleLinesV(Vector2 center, float radius, Color color)
 void DrawCircleSector(Vector2 center, float radius, float startAngle, float endAngle, int segments, Color color)
