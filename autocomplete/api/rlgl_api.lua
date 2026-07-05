@@ -931,6 +931,12 @@ return {
       description = "color diffuse (base tint color, multiplied by texture color)"
     },
     {
+      name = "RL_DEFAULT_SHADER_UNIFORM_NAME_BONEMATRICES",
+      type = "STRING",
+      value = "boneMatrices",
+      description = "bone matrices (required for GPU skinning)"
+    },
+    {
       name = "RL_DEFAULT_SHADER_SAMPLER2D_NAME_TEXTURE0",
       type = "STRING",
       value = "texture0",
@@ -947,12 +953,6 @@ return {
       type = "STRING",
       value = "texture2",
       description = "texture2 (texture slot active 2)"
-    },
-    {
-      name = "RL_DEFAULT_SHADER_UNIFORM_NAME_BONEMATRICES",
-      type = "STRING",
-      value = "boneMatrices",
-      description = "bone matrices (required for GPU skinning)"
     },
     {
       name = "rlMatrixToFloat(mat)",

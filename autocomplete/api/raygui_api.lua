@@ -9,13 +9,13 @@ return {
     {
       name = "RAYGUI_VERSION_MAJOR",
       type = "INT",
-      value = 4,
+      value = 5,
       description = ""
     },
     {
       name = "RAYGUI_VERSION_MINOR",
       type = "INT",
-      value = 5,
+      value = 0,
       description = ""
     },
     {
@@ -73,6 +73,12 @@ return {
       description = ""
     },
     {
+      name = "GUI_BUTTON_PRESSED_MID",
+      type = "UNKNOWN",
+      value = "(IsMouseButtonPressed(MOUSE_MIDDLE_BUTTON) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_UP))",
+      description = ""
+    },
+    {
       name = "GUI_BUTTON_RELEASED",
       type = "UNKNOWN",
       value = "(IsMouseButtonReleased(MOUSE_LEFT_BUTTON) || IsGamepadButtonReleased(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))",
@@ -107,6 +113,12 @@ return {
       type = "UNKNOWN",
       value = "GetCharPressed()",
       description = ""
+    },
+    {
+      name = "BLANK",
+      type = "UNKNOWN",
+      value = "(Color){ 0, 0, 0, 0 }",
+      description = "Blank (Transparent)"
     },
     {
       name = "SCROLLBAR_LEFT_SIDE",
@@ -159,14 +171,26 @@ return {
     {
       name = "RAYGUI_ICON_MAX_ICONS",
       type = "INT",
-      value = 256,
+      value = 512,
       description = "Maximum number of icons"
+    },
+    {
+      name = "RAYGUI_ICON_MAX_FONT_BACKED",
+      type = "INT",
+      value = 257,
+      description = "Maximum number of icons to back in font atlas"
     },
     {
       name = "RAYGUI_ICON_MAX_NAME_LENGTH",
       type = "INT",
       value = 32,
       description = "Maximum length of icon name id"
+    },
+    {
+      name = "RAYGUI_ICON_FONT_ATLAS_PADDING",
+      type = "INT",
+      value = 1,
+      description = "Padding between backed icons in font atlas"
     },
     {
       name = "RAYGUI_ICON_DATA_ELEMENTS",
@@ -271,12 +295,6 @@ return {
       description = ""
     },
     {
-      name = "RAYGUI_TABBAR_ITEM_WIDTH",
-      type = "INT",
-      value = 148,
-      description = ""
-    },
-    {
       name = "RAYGUI_MIN_SCROLLBAR_WIDTH",
       type = "INT",
       value = 40,
@@ -295,9 +313,9 @@ return {
       description = ""
     },
     {
-      name = "RAYGUI_TOGGLEGROUP_MAX_ITEMS",
+      name = "RAYGUI_TOGGLEGROUP_MAX_ITEM_TEXT_SIZE",
       type = "INT",
-      value = 32,
+      value = 256,
       description = ""
     },
     {
@@ -373,7 +391,7 @@ return {
       description = ""
     },
     {
-      name = "ICON_TEXT_PADDING",
+      name = "RAYGUI_ICON_TEXT_PADDING",
       type = "INT",
       value = 4,
       description = ""
@@ -400,7 +418,7 @@ return {
       name = "RAYGUI_TEXTSPLIT_MAX_TEXT_SIZE",
       type = "INT",
       value = 1024,
-      description = ""
+      description = "WARNING: Max expected size for all concat items"
     },
     {
       name = "RAYGUI_TEXTFORMAT_MAX_SIZE",
@@ -843,7 +861,7 @@ return {
           description = ""
         },
         {
-          name = "CONTROL11",
+          name = "TABBAR",
           value = 11,
           description = ""
         },
@@ -871,7 +889,7 @@ return {
     },
     {
       name = "GuiControlProperty",
-      description = "Gui base properties for every control",
+      description = "Controls BASE properties for every control (RAYGUI_MAX_PROPS_BASE = 16)",
       values = {
         {
           name = "BORDER_COLOR_NORMAL",
@@ -946,13 +964,18 @@ return {
         {
           name = "TEXT_ALIGNMENT",
           value = 14,
-          description = "Control text horizontal alignment inside control text bound (after border and padding)"
+          description = "Control text horizontal alignment inside control text bound (after border and padding): 0-Left, 1-Center, 2-Right"
+        },
+        {
+          name = "BASEPROP16",
+          value = 15,
+          description = "Not used yet..."
         }
       }
     },
     {
       name = "GuiDefaultProperty",
-      description = "DEFAULT extended properties",
+      description = "DEFAULT control, extended properties",
       values = {
         {
           name = "TEXT_SIZE",
@@ -982,12 +1005,17 @@ return {
         {
           name = "TEXT_ALIGNMENT_VERTICAL",
           value = 21,
-          description = "Text vertical alignment inside text bounds (after border and padding)"
+          description = "Text vertical alignment inside text bounds (after border and padding): 0-Top, 1-Middle, 2-Bottom"
         },
         {
           name = "TEXT_WRAP_MODE",
           value = 22,
           description = "Text wrap-mode inside text bounds"
+        },
+        {
+          name = "EXTPROP08",
+          value = 23,
+          description = "Not used yet..."
         }
       }
     },
@@ -999,6 +1027,11 @@ return {
           name = "GROUP_PADDING",
           value = 16,
           description = "ToggleGroup separation between toggles"
+        },
+        {
+          name = "GROUP_WIDTH_FULL",
+          value = 17,
+          description = "ToggleGroup bounds width considers all items: 0-Width per item, 1-Full width"
         }
       }
     },
@@ -1030,7 +1063,7 @@ return {
         {
           name = "PROGRESS_SIDE",
           value = 17,
-          description = "ProgressBar increment side: 0-left->right, 1-right-left "
+          description = "ProgressBar increment side: 0-Left->Right, 1-Right->Left"
         }
       }
     },
@@ -1119,7 +1152,7 @@ return {
         {
           name = "DROPDOWN_ROLL_UP",
           value = 19,
-          description = "DropdownBox roll up flag (default rolls down)"
+          description = "DropdownBox roll up flag: 0-Roll down, 1-Roll up"
         }
       }
     },
@@ -1130,7 +1163,7 @@ return {
         {
           name = "TEXT_READONLY",
           value = 16,
-          description = "TextBox in read-only mode: 0-text editable, 1-text no-editable"
+          description = "TextBox in read-only mode: 0-Text editable, 1-Text read-only"
         }
       }
     },
@@ -1151,8 +1184,29 @@ return {
       }
     },
     {
+      name = "GuiTabBarProperty",
+      description = "TabBar",
+      values = {
+        {
+          name = "TAB_ITEMS_WIDTH",
+          value = 16,
+          description = "TabBar tab items width"
+        },
+        {
+          name = "TAB_CLOSE_BUTTON",
+          value = 17,
+          description = "TabBar tab close button: 0-Not shown, 1-Shown"
+        },
+        {
+          name = "TAB_LINE_SIDE",
+          value = 18,
+          description = "TabBar tabs side: 0-Bottom, 1-Top"
+        }
+      }
+    },
+    {
       name = "GuiListViewProperty",
-      description = "ListView",
+      description = "",
       values = {
         {
           name = "LIST_ITEMS_HEIGHT",
@@ -1172,7 +1226,7 @@ return {
         {
           name = "SCROLLBAR_SIDE",
           value = 19,
-          description = "ListView scrollbar side (0-SCROLLBAR_LEFT_SIDE, 1-SCROLLBAR_RIGHT_SIDE)"
+          description = "ListView scrollbar side: 0-Left side, 1-Right Side"
         },
         {
           name = "LIST_ITEMS_BORDER_NORMAL",
@@ -1193,7 +1247,7 @@ return {
         {
           name = "COLOR_SELECTOR_SIZE",
           value = 16,
-          description = ""
+          description = "ColorPicker selector square size"
         },
         {
           name = "HUEBAR_WIDTH",
@@ -2472,33 +2526,38 @@ return {
           description = ""
         },
         {
-          name = "ICON_250",
+          name = "ICON_FILETYPE_FONT",
           value = 250,
           description = ""
         },
         {
-          name = "ICON_251",
+          name = "ICON_FILETYPE_3D",
           value = 251,
           description = ""
         },
         {
-          name = "ICON_252",
+          name = "ICON_FILETYPE_CODE_XML",
           value = 252,
           description = ""
         },
         {
-          name = "ICON_253",
+          name = "ICON_FILETYPE_CODE_C",
           value = 253,
           description = ""
         },
         {
-          name = "ICON_254",
+          name = "ICON_FILETYPE_CODE_PYTHON",
           value = 254,
           description = ""
         },
         {
-          name = "ICON_255",
+          name = "ICON_FILETYPE_CODE_JS",
           value = 255,
+          description = ""
+        },
+        {
+          name = "ICON_FILETYPE_ICON",
+          value = 256,
           description = ""
         }
       }
@@ -2594,6 +2653,15 @@ return {
       }
     },
     {
+      name = "GuiLoadStyleFromMemory",
+      description = "Load style from memory (binary only)",
+      returnType = "void",
+      params = {
+        {type = "const unsigned char *", name = "fileData"},
+        {type = "int", name = "dataSize"}
+      }
+    },
+    {
       name = "GuiLoadStyleDefault",
       description = "Load style default over global style",
       returnType = "void"
@@ -2644,6 +2712,16 @@ return {
       returnType = "char **",
       params = {
         {type = "const char *", name = "fileName"},
+        {type = "bool", name = "loadIconsName"}
+      }
+    },
+    {
+      name = "GuiLoadIconsFromMemory",
+      description = "Load raygui icons file (.rgi) from memory into internal icons data",
+      returnType = "char **",
+      params = {
+        {type = "const unsigned char *", name = "fileData"},
+        {type = "int", name = "dataSize"},
         {type = "bool", name = "loadIconsName"}
       }
     },
@@ -2701,17 +2779,6 @@ return {
       params = {
         {type = "Rectangle", name = "bounds"},
         {type = "const char *", name = "text"}
-      }
-    },
-    {
-      name = "GuiTabBar",
-      description = "Tab Bar control, returns TAB to be closed or -1",
-      returnType = "int",
-      params = {
-        {type = "Rectangle", name = "bounds"},
-        {type = "char **", name = "text"},
-        {type = "int", name = "count"},
-        {type = "int *", name = "active"}
       }
     },
     {
@@ -2945,13 +3012,37 @@ return {
     },
     {
       name = "GuiListViewEx",
-      description = "List View with extended parameters",
+      description = "List View control, using text entries list and returning focus entry",
       returnType = "int",
       params = {
         {type = "Rectangle", name = "bounds"},
         {type = "char **", name = "text"},
         {type = "int", name = "count"},
         {type = "int *", name = "scrollIndex"},
+        {type = "int *", name = "active"},
+        {type = "int *", name = "focus"}
+      }
+    },
+    {
+      name = "GuiTabBar",
+      description = "Tab Bar control",
+      returnType = "int",
+      params = {
+        {type = "Rectangle", name = "bounds"},
+        {type = "const char *", name = "text"},
+        {type = "int *", name = "hscroll"},
+        {type = "int *", name = "active"}
+      }
+    },
+    {
+      name = "GuiTabBarEx",
+      description = "Tab Bar control, using text entries list and returning focus entry",
+      returnType = "int",
+      params = {
+        {type = "Rectangle", name = "bounds"},
+        {type = "char **", name = "text"},
+        {type = "int", name = "count"},
+        {type = "int *", name = "hscroll"},
         {type = "int *", name = "active"},
         {type = "int *", name = "focus"}
       }
@@ -2983,7 +3074,7 @@ return {
     },
     {
       name = "GuiColorPicker",
-      description = "Color Picker control (multiple color controls)",
+      description = "Color Picker control, includes Color bar controls",
       returnType = "int",
       params = {
         {type = "Rectangle", name = "bounds"},
@@ -3023,7 +3114,7 @@ return {
     },
     {
       name = "GuiColorPickerHSV",
-      description = "Color Picker control that avoids conversion to RGB on each call (multiple color controls)",
+      description = "Color Picker control, using Hue-Saturation-Value color data, includes Color bar controls",
       returnType = "int",
       params = {
         {type = "Rectangle", name = "bounds"},
@@ -3033,7 +3124,7 @@ return {
     },
     {
       name = "GuiColorPanelHSV",
-      description = "Color Panel control that updates Hue-Saturation-Value color value, used by GuiColorPickerHSV()",
+      description = "Color Panel control, using Hue-Saturation-Value color data",
       returnType = "int",
       params = {
         {type = "Rectangle", name = "bounds"},
