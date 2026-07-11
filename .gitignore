@@ -9,3 +9,8 @@ dist/
 libraylua.a
 .cache
 compile_commands.json
+
+web/dist/
+web/.build/
+web/emsdk/
+web/autogen/

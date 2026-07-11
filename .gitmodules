@@ -17,3 +17,6 @@ url = https://github.com/raysan5/physac
 [submodule "examples/lynx"]
 path = examples/lynx
 url = https://gitlab.com/TSnake41/lynx
+[submodule "web/lua"]
+	path = web/lua
+	url = https://github.com/lua/lua

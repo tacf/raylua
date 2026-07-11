@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>raylua playground</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+</head>
+<body>
+  <header id="topbar">
+    <h1>raylua <span class="subtitle">web playground</span></h1>
+
+    <label class="field">
+      Example
+      <select id="example-select"><option>Loading&hellip;</option></select>
+    </label>
+
+    <button id="run-btn" class="btn btn-primary">&#9654; Run</button>
+    <button id="stop-btn" class="btn" disabled>&#9632; Stop</button>
+
+    <span id="status" class="status">booting engine&hellip;</span>
+
+    <a class="repo-link" href="https://github.com/tacf/raylua" target="_blank" rel="noopener">GitHub</a>
+  </header>
+
+  <main id="layout">
+    <section id="editor-pane">
+      <textarea id="editor"></textarea>
+    </section>
+
+    <section id="run-pane">
+      <div id="canvas-wrap">
+        <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+        <div id="canvas-placeholder">Press Run to start</div>
+      </div>
+      <div id="console-wrap">
+        <div id="console-header">
+          <span>Console</span>
+          <button id="console-clear" class="btn btn-small">Clear</button>
+        </div>
+        <pre id="console"></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer id="footnote">
+    Runs a real build of <a href="https://github.com/tacf/raylua" target="_blank" rel="noopener">raylua</a>
+    (standard Lua 5.4 + raylib) compiled to WebAssembly with Emscripten &mdash;
+    not every desktop example is expected to run unmodified in the browser
+    (LuaJIT/FFI-only idioms, GL 3.3-only shaders, and local file loading don't
+    carry over to the web build).
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/lua/lua.min.js"></script>
+  <script src="raylua_web.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

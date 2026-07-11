@@ -81,6 +81,30 @@ make update        # regenerate bindings + autocomplete
 make clean         # remove build outputs
 ```
 
+### Web playground
+
+`web/` contains a separate build of the raylua engine for the browser, plus a small IDE (code editor + canvas + console) to write and run Lua/raylib scripts live, published via GitHub Pages.
+
+LuaJIT's FFI (which the desktop bindings are built on) has no WebAssembly backend, so the web build uses standard Lua 5.4 with a generated, non-FFI binding layer instead (`tools/genbind_web.lua`, `tools/genconst_web.lua`). raylib structs are plain Lua tables on the web instead of FFI cdata; see `web/ide/examples/` for scripts adapted to that convention. Not every desktop example is expected to run unmodified in the browser (LuaJIT/FFI-only idioms, GL 3.3-only shaders, and local file loading don't carry over).
+
+Build and run it locally with [emsdk](https://emscripten.org/docs/getting_started/downloads.html) activated:
+
+```sh
+web/serve.sh              # builds web/dist/ if missing, then serves it at :8080
+web/serve.sh --build      # force a rebuild first (after changing web/ or src/raylib.lua)
+PORT=9000 web/serve.sh    # serve on a different port
+```
+
+Or just build without serving:
+
+```sh
+bash web/build.sh
+```
+
+This regenerates the web bindings, builds raylib and Lua 5.4 for `PLATFORM_WEB`, links `web/dist/raylua_web.{js,wasm}`, and assembles the static site in `web/dist/`.
+
+`.github/workflows/pages.yml` rebuilds and deploys `web/dist/` to GitHub Pages on every push to `main` that touches `web/`, `src/`, `tools/`, or `examples/`. Pages is enabled for this repo (source: GitHub Actions), so it publishes to <https://tacf.github.io/raylua/>.
+
 ### Notes
 
 A working Lua interpreter is needed for the code generation steps. By default, the LuaJIT interpreter built in this repository is used.

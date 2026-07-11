@@ -1,0 +1,19 @@
+[
+  { "category": "core", "title": "Basic Window", "path": "core/basic_window.lua" },
+  { "category": "core", "title": "Mouse Input", "path": "core/input_mouse.lua" },
+  { "category": "core", "title": "Keyboard Input", "path": "core/input_keys.lua" },
+  { "category": "core", "title": "3D Free Camera", "path": "core/3d_camera_free.lua" },
+  { "category": "core", "title": "Render Texture", "path": "core/render_texture.lua" },
+  { "category": "core", "title": "Random Values", "path": "core/random_values.lua" },
+  { "category": "shapes", "title": "Basic Shapes", "path": "shapes/basic_shapes.lua" },
+  { "category": "shapes", "title": "Bouncing Ball", "path": "shapes/bouncing_ball.lua" },
+  { "category": "shapes", "title": "Ball Physics", "path": "shapes/ball_physics.lua" },
+  { "category": "shapes", "title": "Colors Palette", "path": "shapes/colors_palette.lua" },
+  { "category": "shapes", "title": "Recursive Tree", "path": "shapes/recursive_tree.lua" },
+  { "category": "shapes", "title": "rlgl Triangle", "path": "shapes/rlgl_triangle.lua" },
+  { "category": "shapes", "title": "raylib Logo Anim", "path": "shapes/logo_raylib.lua" },
+  { "category": "shapes", "title": "Splines Drawing", "path": "shapes/splines_drawing.lua" },
+  { "category": "text", "title": "Format Text", "path": "text/format_text.lua" },
+  { "category": "textures", "title": "Image Generation", "path": "textures/image_generation.lua" },
+  { "category": "models", "title": "Geometric Shapes (3D)", "path": "models/geometric_shapes.lua" }
+]
