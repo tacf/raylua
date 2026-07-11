@@ -117,7 +117,8 @@ emcc -Os \
   raylib/src/libraylib.web.a \
   -I"$AUTOGEN_DIR" -Iweb/src -Iweb/lua -Iraylib/src -Iraygui/src -Iphysac/src \
   -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES2 \
-  -sUSE_GLFW=3 -sASYNCIFY -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=0 \
+  -sUSE_GLFW=3 -sASYNCIFY -sEXIT_RUNTIME=0 \
+  -sINITIAL_MEMORY=268435456 \
   -sEXPORTED_FUNCTIONS=_main,_raylua_web_run,_raylua_web_request_stop \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap \
   -sMODULARIZE=1 -sEXPORT_NAME=RayluaModule \
