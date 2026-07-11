@@ -3,6 +3,7 @@
   { "category": "core", "title": "Mouse Input", "path": "core/input_mouse.lua" },
   { "category": "core", "title": "Keyboard Input", "path": "core/input_keys.lua" },
   { "category": "core", "title": "3D Free Camera", "path": "core/3d_camera_free.lua" },
+  { "category": "core", "title": "3D First Person Camera", "path": "core/3d_camera_first_person.lua" },
   { "category": "core", "title": "Render Texture", "path": "core/render_texture.lua" },
   { "category": "core", "title": "Random Values", "path": "core/random_values.lua" },
   { "category": "shapes", "title": "Basic Shapes", "path": "shapes/basic_shapes.lua" },

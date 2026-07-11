@@ -354,6 +354,18 @@ function rl.new(name, ...)
   if not fields then
     error("rl.new: unknown struct '" .. tostring(name) .. "' (web build)")
   end
+
+  -- ffi.new("Camera3D", { position = .., target = .. }) is a common desktop
+  -- idiom: a single table used as a named-field initializer, distinct from
+  -- the flat positional form ffi.new("Vector2", x, y). Detect and support
+  -- both, otherwise a single-table call would wrongly collapse the whole
+  -- table into the struct's first field.
+  if select("#", ...) == 1 and type((...)) == "table" then
+    local t = {}
+    for k, v in pairs((...)) do t[k] = v end
+    return t
+  end
+
   local t = {}
   local n = select("#", ...)
   for i, fname in ipairs(fields) do
