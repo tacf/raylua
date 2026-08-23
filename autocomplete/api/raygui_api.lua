@@ -27,7 +27,7 @@ return {
     {
       name = "RAYGUI_VERSION",
       type = "STRING",
-      value = "5.0",
+      value = "5.0-dev",
       description = ""
     },
     {
@@ -712,32 +712,6 @@ return {
     }
   },
   enums = {
-    {
-      name = "GuiResult",
-      description = "Gui control result",
-      values = {
-        {
-          name = "RESULT_NONE",
-          value = 0,
-          description = ""
-        },
-        {
-          name = "RESULT_PRESSED",
-          value = 1,
-          description = ""
-        },
-        {
-          name = "RESULT_CHANGED",
-          value = 2,
-          description = ""
-        },
-        {
-          name = "RESULT_TAB_CLOSE",
-          value = 4,
-          description = "GuiTabBar(), tab close request"
-        }
-      }
-    },
     {
       name = "GuiState",
       description = "Gui control state",
@@ -3081,8 +3055,7 @@ return {
         {type = "Rectangle", name = "bounds"},
         {type = "const char *", name = "title"},
         {type = "const char *", name = "message"},
-        {type = "const char *", name = "btnText"},
-        {type = "int *", name = "btnActive"}
+        {type = "const char *", name = "buttons"}
       }
     },
     {
@@ -3093,10 +3066,9 @@ return {
         {type = "Rectangle", name = "bounds"},
         {type = "const char *", name = "title"},
         {type = "const char *", name = "message"},
+        {type = "const char *", name = "buttons"},
         {type = "char *", name = "text"},
-        {type = "int", name = "textSize"},
-        {type = "const char *", name = "btnText"},
-        {type = "int *", name = "btnActive"},
+        {type = "int", name = "textMaxSize"},
         {type = "bool *", name = "secretViewActive"}
       }
     },
