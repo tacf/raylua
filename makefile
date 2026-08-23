@@ -89,7 +89,7 @@ else ifeq ($(shell uname -s),MINGW64_NT)
 else ifeq ($(shell uname),Darwin)
 	SYS_LIBS += -lm \
 		-framework CoreVideo -framework IOKit -framework Cocoa \
-		-framework GLUT -framework OpenGL
+		-framework GLUT -framework OpenGL -framework QuartzCore
 	SYS_LIBS_DEV := $(SYS_LIBS)
 	RAYLIB_MAKE_LDFLAGS := $(SYS_LIBS)
 
