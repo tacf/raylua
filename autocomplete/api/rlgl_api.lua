@@ -841,6 +841,12 @@ return {
       description = ""
     },
     {
+      name = "GL_DRAW_FRAMEBUFFER_BINDING",
+      type = "UNKNOWN",
+      value = "GL_FRAMEBUFFER_BINDING",
+      description = ""
+    },
+    {
       name = "RL_DEFAULT_SHADER_ATTRIB_NAME_POSITION",
       type = "STRING",
       value = "vertexPosition",
