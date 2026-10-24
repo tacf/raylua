@@ -1179,6 +1179,11 @@ return {
           name = "DROPDOWN_ROLL_UP",
           value = 19,
           description = "DropdownBox roll up flag: 0-Roll down, 1-Roll up"
+        },
+        {
+          name = "DROPDOWN_MAX_HEIGHT",
+          value = 20,
+          description = "DropdownBox max height, using scrollbar if required, 0-No limit"
         }
       }
     },
