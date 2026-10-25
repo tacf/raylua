@@ -104,13 +104,13 @@ return {
     },
     {
       name = "RL_CULL_DISTANCE_NEAR",
-      type = "DOUBLE",
+      type = "FLOAT",
       value = 0.05,
       description = "Default near cull distance"
     },
     {
       name = "RL_CULL_DISTANCE_FAR",
-      type = "DOUBLE",
+      type = "FLOAT",
       value = 4000.0,
       description = "Default far cull distance"
     },
@@ -2250,12 +2250,12 @@ return {
       description = "",
       returnType = "void",
       params = {
-        {type = "double", name = "left"},
-        {type = "double", name = "right"},
-        {type = "double", name = "bottom"},
-        {type = "double", name = "top"},
-        {type = "double", name = "znear"},
-        {type = "double", name = "zfar"}
+        {type = "float", name = "left"},
+        {type = "float", name = "right"},
+        {type = "float", name = "bottom"},
+        {type = "float", name = "top"},
+        {type = "float", name = "znear"},
+        {type = "float", name = "zfar"}
       }
     },
     {
@@ -2263,12 +2263,12 @@ return {
       description = "",
       returnType = "void",
       params = {
-        {type = "double", name = "left"},
-        {type = "double", name = "right"},
-        {type = "double", name = "bottom"},
-        {type = "double", name = "top"},
-        {type = "double", name = "znear"},
-        {type = "double", name = "zfar"}
+        {type = "float", name = "left"},
+        {type = "float", name = "right"},
+        {type = "float", name = "bottom"},
+        {type = "float", name = "top"},
+        {type = "float", name = "znear"},
+        {type = "float", name = "zfar"}
       }
     },
     {
@@ -2287,19 +2287,19 @@ return {
       description = "Set clip planes distances",
       returnType = "void",
       params = {
-        {type = "double", name = "nearPlane"},
-        {type = "double", name = "farPlane"}
+        {type = "float", name = "nearPlane"},
+        {type = "float", name = "farPlane"}
       }
     },
     {
       name = "rlGetCullDistanceNear",
       description = "Get cull plane distance near",
-      returnType = "double"
+      returnType = "float"
     },
     {
       name = "rlGetCullDistanceFar",
       description = "Get cull plane distance far",
-      returnType = "double"
+      returnType = "float"
     },
     {
       name = "rlBegin",
