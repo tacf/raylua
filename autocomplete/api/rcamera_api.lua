@@ -20,13 +20,13 @@ return {
     },
     {
       name = "CAMERA_CULL_DISTANCE_NEAR",
-      type = "DOUBLE",
+      type = "FLOAT",
       value = 0.05,
       description = ""
     },
     {
       name = "CAMERA_CULL_DISTANCE_FAR",
-      type = "DOUBLE",
+      type = "FLOAT",
       value = 4000.0,
       description = ""
     },
